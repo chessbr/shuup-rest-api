@@ -14,7 +14,7 @@ from django.utils.translation import ugettext_lazy as _
 from django_filters import DateTimeFilter
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet
 from rest_framework import serializers, status
-from rest_framework.decorators import detail_route
+from rest_framework.decorators import action
 from rest_framework.fields import JSONField
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -33,7 +33,10 @@ from shuup_rest_api.views.refunds import RefundMixin
 class OrderLineSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderLine
-        fields = ("product", "sku", "text", "quantity", "type", "base_unit_price_value", "discount_amount_value")
+        fields = (
+            "product", "sku", "text", "quantity", "supplier",
+            "type", "base_unit_price_value", "discount_amount_value"
+        )
 
     def get_fields(self):
         fields = super(OrderLineSerializer, self).get_fields()
@@ -64,7 +67,7 @@ class OrderSerializer(AvailableOrderMethodsMixin, serializers.ModelSerializer):
     def get_fields(self):
         fields = super(OrderSerializer, self).get_fields()
         for name, field in fields.items():
-            if name in ("status", "key", "label", "currency"):
+            if name in ("status", "key", "label", "currency", "prices_include_tax"):
                 field.required = False
             if name == "order_date":
                 field.default = lambda: now()
@@ -74,7 +77,7 @@ class OrderSerializer(AvailableOrderMethodsMixin, serializers.ModelSerializer):
 
 
 class OrderFilter(FilterSet):
-    date = DateTimeFilter(name="order_date", method="filter_date")
+    date = DateTimeFilter(field_name="order_date", method="filter_date")
 
     def filter_date(self, queryset, name, value):
         if not value:
@@ -108,19 +111,19 @@ class OrderStatusChangeMixin(object):
         order.add_log_entry(message, user=self.request.user, identifier="status_change")
         return Response({"status": str(to_status)}, status=status.HTTP_200_OK)
 
-    @detail_route(methods=['post'])
+    @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         """ Set the order as Completed. """
         return self.change_order_status(OrderStatus.objects.get_default_complete())
 
-    @detail_route(methods=['post'])
+    @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         """ Set the order as Canceled. """
         return self.change_order_status(OrderStatus.objects.get_default_canceled())
 
 
 class OrderTaxesMixin(object):
-    @detail_route(methods=['get'])
+    @action(detail=True, methods=['get'])
     def taxes(self, request, pk=None):
         """
         Get taxes for order
@@ -169,7 +172,7 @@ class OrderViewSet(PermissionHelperMixin,
     serializer_class = OrderSerializer
     queryset = Order.objects.all()
     filter_backends = (DjangoFilterBackend,)
-    filter_class = OrderFilter
+    filterset_class = OrderFilter
 
     def get_view_name(self):
         return _("Orders")
@@ -178,7 +181,7 @@ class OrderViewSet(PermissionHelperMixin,
     def get_help_text(cls):
         return _("Orders can be listed, fetched, created, updated and canceled.")
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):     # noqa (C901)
         post_data = request.data
 
         # Revise. We should not need to mutate the data for the serializer.
@@ -209,19 +212,28 @@ class OrderViewSet(PermissionHelperMixin,
 
         shop = serializer.validated_data["shop"]
         customer = serializer.validated_data["customer"]
-        lines = [{
-            "id": (idx + 1),
-            "quantity": line["quantity"],
-            "product": {
-                "id": getattr(line["product"], "id", None)
-            },
-            "baseUnitPrice": line.get("base_unit_price_value"),
-            "unitPrice": line.get("base_unit_price_value") if line["type"].label == "other" else None,
-            "discountAmount": line.get("discount_amount_value", 0),
-            "sku": line.get("sku"),
-            "text": line.get("text"),
-            "type": force_text(line["type"].label) if idx not in text_lines else "text"
-        } for idx, line in enumerate(serializer.validated_data["lines"])]
+        lines = []
+
+        for idx, line in enumerate(serializer.validated_data["lines"]):
+            line_data = {
+                "id": (idx + 1),
+                "quantity": line["quantity"],
+                "product": {
+                    "id": getattr(line["product"], "id", None)
+                },
+                "baseUnitPrice": line.get("base_unit_price_value"),
+                "unitPrice": line.get("base_unit_price_value") if line["type"].label == "other" else None,
+                "discountAmount": line.get("discount_amount_value", 0),
+                "sku": line.get("sku"),
+                "text": line.get("text"),
+                "type": force_text(line["type"].label) if idx not in text_lines else "text"
+            }
+            if line.get("supplier"):
+                line_data["supplier"] = {
+                    "id": line["supplier"].pk
+                }
+
+            lines.append(line_data)
 
         data = {
             "shop": {
@@ -259,12 +271,12 @@ class OrderViewSet(PermissionHelperMixin,
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    @detail_route(methods=['post'])
+    @action(detail=True, methods=['post'])
     def create_payment(self, request, pk=None):
         """ Creates a payment for the order. """
         return _handle_payment_creation(request, self.get_object())
 
-    @detail_route(methods=['post'])
+    @action(detail=True, methods=['post'])
     def set_fully_paid(self, request, pk=None):
         """ Set the order as Fully Paid. """
         order = self.get_object()
