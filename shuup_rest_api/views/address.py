@@ -9,13 +9,14 @@ from __future__ import unicode_literals
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from django_countries.serializers import CountryFieldMixin
 from rest_framework import mixins, serializers
 from rest_framework.viewsets import GenericViewSet
 from shuup.core.models import MutableAddress
 from shuup_api.mixins import PermissionHelperMixin, ProtectedModelViewSetMixin
 
 
-class AddressSerializer(serializers.ModelSerializer):
+class AddressSerializer(CountryFieldMixin, serializers.ModelSerializer):
     class Meta:
         model = MutableAddress
         fields = "__all__"
