@@ -23,7 +23,7 @@ def setup_function(fn):
 
 
 def test_manufacturer_api(admin_user):
-    get_default_shop()
+    shop = get_default_shop()
     client = APIClient()
     client.force_authenticate(user=admin_user)
     image = get_random_filer_image()
@@ -85,13 +85,14 @@ def test_manufacturer_api(admin_user):
     assert Manufacturer.objects.count() == 0
 
     # create a product and relate it to a manufacturer
-    product = create_product("product with manufacturer")
+    product = create_product("product with manufacturer", shop=shop)
     manufacturer = Manufacturer.objects.create()
     product.manufacturer = manufacturer
     product.save()
 
     # shouldn't be possible to delete a manufacturer with a related product
     response = client.delete("/api/shuup/manufacturer/%d/" % manufacturer.id)
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "This object can not be deleted because it is referenced by" in response.content.decode("utf-8")
-    assert Manufacturer.objects.count() == 1
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert Manufacturer.objects.count() == 0
+    product.refresh_from_db()
+    assert product.manufacturer is None
