@@ -771,7 +771,7 @@ def get_product(sku, shop):
         sp = ShopProduct.objects.create(
             product=product, shop=shop, visibility=ShopProductVisibility.ALWAYS_VISIBLE
         )
-        sp.suppliers.add(get_default_supplier())
+        sp.suppliers.add(get_default_supplier(shop))
     return product
 
 
@@ -808,7 +808,6 @@ def test_permissions(admin_user):
      * voi vaihtaa tilauksen tilan, toisen kaupan staff ei voi vaihtaa tilauksen tilaa
      * retrievaa baskettia kuin sinä itse,
     """
-
     set_configuration()
     shop_one = factories.get_default_shop()
     shop_two = Shop.objects.create(
@@ -1076,7 +1075,7 @@ def test_basket_taxes(admin_user, prices_include_tax, tax_rate, product_price, e
     shop = factories.get_shop(prices_include_tax, enabled=True)
     factories.get_payment_method(shop)
     factories.get_shipping_method(shop)
-    product = factories.create_product("product", shop, factories.get_default_supplier(), product_price)
+    product = factories.create_product("product", shop, factories.get_default_supplier(shop), product_price)
     shop_product = product.shop_products.filter(shop=shop).first()
     client = get_client(admin_user)
 

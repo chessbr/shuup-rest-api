@@ -16,7 +16,8 @@ from rest_framework.test import APIClient
 from shuup.core import cache
 from shuup.core.models import Shipment
 from shuup.testing.factories import (
-    create_random_order, create_random_person, get_shop
+    create_random_order, create_random_person, get_default_supplier,
+    get_shop
 )
 
 
@@ -29,6 +30,9 @@ def test_get_shipments(admin_user):
     client = _get_client(admin_user)
     shop1 = get_shop(True, name="teststore 1")
     shop2 = get_shop(True, name="teststore 2")
+
+    supplier = get_default_supplier()
+    supplier.shops.add(shop1, shop2)
     customer1 = create_random_person()
     customer2 = create_random_person()
     order1 = create_random_order(customer1, shop=shop1, completion_probability=1)

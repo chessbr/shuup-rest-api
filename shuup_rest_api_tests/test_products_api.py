@@ -40,8 +40,12 @@ def setup_function(fn):
 
 def get_products_by_id_sku(admin_user):
     client = _get_client(admin_user)
-    get_default_shop()
-    products = [create_product("product 1"), create_product("product 2"), create_product("product 3")]
+    shop = get_default_shop()
+    products = [
+        create_product("product 1", shop=shop),
+        create_product("product 2", shop=shop),
+        create_product("product 3", shop=shop)
+    ]
     client = _get_client(admin_user)
 
     # get by ID
@@ -61,13 +65,16 @@ def get_products_by_id_sku(admin_user):
     assert product_data[0]["sku"] == products[1].id
 
 
-def create_simple_supplier(identifier):
+def create_simple_supplier(identifier, shops):
     ident = "supplier_%s" % identifier
-    return Supplier.objects.create(
+    supplier = Supplier.objects.create(
         identifier=ident,
         name=ident,
         module_identifier="simple_supplier",
     )
+    for shop in shops:
+        supplier.shops.add(shop)
+    return supplier
 
 
 def test_get_product_stocks(admin_user):
@@ -75,8 +82,8 @@ def test_get_product_stocks(admin_user):
     shop1 = Shop.objects.create()
     shop2 = Shop.objects.create()
 
-    supplier1 = create_simple_supplier("1")
-    supplier2 = create_simple_supplier("2")
+    supplier1 = create_simple_supplier("1", [shop1, shop2])
+    supplier2 = create_simple_supplier("2", [shop1, shop2])
 
     product1 = create_product("product 1")
     sp = ShopProduct.objects.create(product=product1, shop=shop1)

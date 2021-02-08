@@ -47,13 +47,16 @@ def setup_function(fn):
     cache.clear()
 
 
-def create_simple_supplier(identifier):
+def create_simple_supplier(identifier, shops):
     ident = "supplier_%s" % identifier
-    return Supplier.objects.create(
+    supplier = Supplier.objects.create(
         identifier=ident,
         name=ident,
         module_identifier="simple_supplier",
     )
+    for shop in shops:
+        supplier.shops.add(shop)
+    return supplier
 
 
 def get_request(path, user, customer=None, data=None):
@@ -152,8 +155,8 @@ def test_products_all_shops(admin_user):
     shop2 = Shop.objects.create(status=ShopStatus.ENABLED)
     shop2.favicon = get_random_filer_image()
     shop2.save()
-    supplier1 = create_simple_supplier("supplier1")
-    supplier2 = create_simple_supplier("supplier2")
+    supplier1 = create_simple_supplier("supplier1", [shop1, shop2])
+    supplier2 = create_simple_supplier("supplier2", [shop2])
 
     # create 2 products for shop2
     product1 = create_product("product1", shop=shop1, supplier=supplier1)
@@ -187,7 +190,7 @@ def test_products_not_available_shop(admin_user):
     person1.user = admin_user
     person1.save()
 
-    supplier1 = create_simple_supplier("supplier1")
+    supplier1 = create_simple_supplier("supplier1", [shop1])
     product1 = create_product("product1", shop=shop1, supplier=supplier1)
     product3 = create_product("product3", shop=shop1, supplier=supplier1)
     # add images for products 1 and 3
@@ -224,7 +227,7 @@ def test_products_not_available_shop(admin_user):
 @pytest.mark.django_db
 def test_products_name_sort(admin_user):
     shop1 = get_default_shop()
-    supplier1 = create_simple_supplier("supplier1")
+    supplier1 = create_simple_supplier("supplier1", shops=[shop1])
     product1 = create_product("product1", shop=shop1, supplier=supplier1)
     product2 = create_product("product2", shop=shop1, supplier=supplier1)
     product3 = create_product("product3", shop=shop1, supplier=supplier1)
@@ -245,7 +248,7 @@ def test_products_name_sort(admin_user):
 @pytest.mark.django_db
 def test_products_not_available_shop(admin_user):
     shop1 = get_default_shop()
-    supplier1 = create_simple_supplier("supplier1")
+    supplier1 = create_simple_supplier("supplier1", [shop1])
     product1 = create_product("product1", shop=shop1, supplier=supplier1)
     product2 = create_product("product2", shop=shop1, supplier=supplier1)
 
@@ -290,7 +293,7 @@ def test_products_not_available_shop(admin_user):
 @pytest.mark.django_db
 def test_product_package(admin_user):
     shop1 = get_default_shop()
-    supplier1 = create_simple_supplier("supplier1")
+    supplier1 = create_simple_supplier("supplier1", [shop1])
     product4 = create_package_product("product4", shop=shop1, supplier=supplier1)
 
     request = get_request("/api/shuup/front/shop_products/", admin_user)
@@ -306,7 +309,7 @@ def test_product_package(admin_user):
 @pytest.mark.django_db
 def test_product_cross_sells(admin_user):
     shop1 = get_default_shop()
-    supplier1 = create_simple_supplier("supplier1")
+    supplier1 = create_simple_supplier("supplier1", [shop1])
     product1 = create_product("product1", shop=shop1, supplier=supplier1)
     product2 = create_product("product2", shop=shop1, supplier=supplier1)
 
@@ -344,7 +347,7 @@ def test_get_best_selling_products(admin_user):
     person1.user = admin_user
     person1.save()
 
-    supplier = create_simple_supplier("supplier1")
+    supplier = create_simple_supplier("supplier1", [shop1, shop2])
     client = _get_client(admin_user)
 
     # list best selling products
@@ -434,7 +437,7 @@ def test_get_newest_products(admin_user):
     products = json.loads(response.content.decode("utf-8"))
     assert len(products) == 0
 
-    supplier = create_simple_supplier("supplier1")
+    supplier = create_simple_supplier("supplier1", [shop1, shop2])
 
     # create 30 random products
     for x in range(30):
@@ -474,8 +477,8 @@ def test_get_newest_products(admin_user):
 
 @pytest.mark.django_db
 def test_nearby_products(admin_user):
-    get_default_shop()
-    supplier = create_simple_supplier("supplier1")
+    shop = get_default_shop()
+    supplier = create_simple_supplier("supplier1", [shop])
 
     # create Apple and its products
     shop1 = Shop.objects.create(status=ShopStatus.ENABLED)
@@ -739,7 +742,7 @@ def test_product_price_info(admin_user, prices_include_tax, product_price, disco
 def test_products_shop_disabled(admin_user):
     shop1 = get_default_shop()
     shop2 = Shop.objects.create(status=ShopStatus.DISABLED)
-    supplier1 = create_simple_supplier("supplier1")
+    supplier1 = create_simple_supplier("supplier1", [shop1, shop2])
     create_product("product1", shop=shop1, supplier=supplier1)
     create_product("product2", shop=shop2, supplier=supplier1)
 

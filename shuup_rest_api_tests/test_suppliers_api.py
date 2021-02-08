@@ -23,13 +23,16 @@ from .utils import get_simple_supplier
 from shuup.simple_supplier.models import StockAdjustment
 
 
-def create_simple_supplier(identifier):
+def create_simple_supplier(identifier, shops):
     ident = "supplier_%s" % identifier
-    return Supplier.objects.create(
+    supplier = Supplier.objects.create(
         identifier=ident,
         name=ident,
         module_identifier="simple_supplier",
     )
+    for shop in shops:
+        supplier.shops.add(shop)
+    return supplier
 
 
 @pytest.mark.django_db
@@ -38,8 +41,8 @@ def test_get_suppliers(admin_user):
     shop1 = Shop.objects.create()
     shop2 = Shop.objects.create()
 
-    supplier1 = create_simple_supplier("supplier1")
-    supplier2 = create_simple_supplier("supplier2")
+    supplier1 = create_simple_supplier("supplier1", shops=[shop1, shop2])
+    supplier2 = create_simple_supplier("supplier2", shops=[shop1, shop2])
 
     product1 = create_product("product 1")
     sp = ShopProduct.objects.create(product=product1, shop=shop1)
@@ -120,7 +123,7 @@ def test_get_suppliers(admin_user):
 
 @pytest.mark.django_db
 def test_adjust_stock(admin_user):
-    get_default_shop()
+    shop = get_default_shop()
     sp = get_default_shop_product()
     client = _get_client(admin_user)
     supplier1 = get_simple_supplier()
