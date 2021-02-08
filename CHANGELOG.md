@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Enter here all the changes made to the development version
 
+### [2.1.0] - 2021-02-08
+
 ### Fixed
 
-- Use CountryFieldMixin from django_countries.serializers to handle address country field serialization
+- Use CountryFieldMixin from django_countries.serializers to
+  handle address country field serialization
 
 ### [2.0.0] - 2020-08-06
 
