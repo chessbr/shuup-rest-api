@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "shuup-rest-api"
+version = "2.1.11"
+description = "Shuup REST API"
+authors = ["Shuup <devs@shuup.com>"]
+
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
